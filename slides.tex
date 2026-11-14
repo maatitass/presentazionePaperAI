@@ -1,0 +1,289 @@
+% !TeX root = main.tex
+% Queste slide sono esempi da sostituire con il contenuto del paper.
+
+\begin{frame}{Indice}
+  \tableofcontents
+\end{frame}
+
+\section{Introduzione}
+
+\begin{frame}{Introduction}
+
+\begin{columns}[c,onlytextwidth]
+
+    \begin{column}{0.55\textwidth}
+      \small
+        \begin{itemize}
+
+            \item \textbf{Mechanistic Interpretability}
+            aims to understand how neural networks
+            produce predictions by identifying
+            interpretable components and their
+            causal relationships.
+
+            \vspace{0.25cm}
+
+            \item \textbf{Polysemanticity}
+            is the phenomenon where a neuron
+            activates in semantically unrelated
+            contexts, making it difficult to interpret.
+
+            \vspace{0.25cm}
+
+            \item \textbf{Superposition}
+            is the hypothesis that networks represent
+            more features than dimensions, using
+            non-orthogonal directions.
+
+            \vspace{0.25cm}
+
+            \item \textbf{Sparsity}
+            means that only a small subset of features
+            is active for each input, reducing
+            interference between them.
+
+        \end{itemize}
+    \end{column}
+
+    \begin{column}{0.43\textwidth}
+        \centering
+
+        \includegraphics[
+            width=\linewidth
+        ]{superposition.png}
+
+        \vspace{0.3cm}
+
+        $x = a_1f_1 + a_2f_2 + a_3f_3$
+
+        \vspace{0.2cm}
+
+        {\footnotesize
+        $f_i$: feature direction
+
+        $a_i$: feature activation
+        }
+    \end{column}
+
+\end{columns}
+
+\end{frame}
+
+\begin{frame}[t]{Approach}
+
+  \begin{center}
+    \includegraphics[
+      width=0.95\textwidth,
+      height=0.45\textheight,
+      keepaspectratio
+    ]{approach.png}
+  \end{center}
+
+  \medskip
+
+  \begin{itemize}
+    \item \textbf{Goal:} Recover meaningful feature directions
+    such that activation vectors can be reconstructed as
+    sparse linear combinations of these directions.
+
+    \medskip
+
+    \item \textbf{Method:} Train a Sparse Autoencoder (SAE)
+    on the internal activations of a pretrained language model.
+
+    \medskip
+
+    \item \textbf{Result:} Learn a dictionary of feature
+    directions that can be analyzed and interpreted.
+  \end{itemize}
+
+\end{frame}
+
+\section{Sparse Dictionary Learning}
+
+\begin{frame}{Sparse Dictionary Learning}
+
+    Given the internal activation vectors
+    $x_i \in \mathbb{R}^d$ from a pretrained
+    language model.
+
+    \medskip
+
+    We assume each activation is a sparse
+    linear combination of unknown features:
+
+    \[
+        x_i = \sum_{j=1}^{n_{\mathrm{gt}}} a_{i,j} g_j
+    \]
+
+    \begin{itemize}
+        \item $g_j$:
+        unknown ground truth feature directions.
+
+        \item $a_{i,j}$:
+        activation strength of feature $j$
+        in example $i$.
+    \end{itemize}
+
+    \medskip
+
+    We want to learn a dictionary of feature
+    directions $F$
+    such that $\forall g_j \exists f_k in F:f_j \approx g_j$.
+\end{frame}
+
+
+\begin{frame}{SAE}
+
+  \begin{columns}[c,onlytextwidth]
+
+    \begin{column}{0.55\textwidth}
+    \footnotesize
+
+    To learn the feature dictionary, the authors train a
+    \textbf{Sparse Autoencoder (SAE)}.
+    The encoder maps the input $x$ to a sparse representation $c$,
+    while the decoder reconstructs $\hat{x}$.
+
+    The hidden layer is larger than the input,
+    with $d_{\mathrm{hid}} = R d_{\mathrm{in}}$ and $R > 1$.
+
+    \medskip
+    The trainable weight matrix $M$ represents the
+    \textbf{learned feature dictionary}, with each row
+    corresponding to a feature direction.
+    The encoder and decoder share the same weights using $M$ and $M^T$ respectively.
+
+    \medskip
+
+    A sparsity penalty is added to the reconstruction loss:
+    \[
+      \mathcal{L}(x) =
+      \|x-\hat{x}\|_2^2 + \alpha \|c\|_1
+    \]
+    where $\alpha$ controls the sparsity of the
+    reconstruction.
+
+    \end{column}
+
+    \begin{column}{0.43\textwidth}
+      \centering
+      \includegraphics[width=\linewidth]{SAE.png}
+    \end{column}
+
+  \end{columns}
+\end{frame}
+
+\section{INTERPRETING DICTIONARY FEATURES}
+
+
+\begin{frame}{Evaluating Interpretability}
+
+  \small
+
+  After training the SAE, the authors investigate whether
+  the learned features are less polysemantic and more
+  interpretable than the original model representations.
+
+  To measure interpretability, they use an automated
+  process involving LLMs:
+
+  \begin{itemize}
+    \item Collect text samples where a dictionary feature activates.
+
+    \item Ask an LLM to generate a description
+    of the feature based on these samples.
+
+    \item Use this description to predict the feature's
+    activation on new text samples.
+  \end{itemize}
+
+  \medskip
+
+  The \textbf{correlation} between predicted and actual activations
+  defines the feature's \textbf{interpretability score}.
+
+  \medskip
+  
+  \begin{table}
+  \centering
+  \footnotesize
+  \setlength{\tabcolsep}{3pt}
+
+  \begin{tabular}{c p{6.2cm} c}
+  \hline
+  \textbf{Feature} &
+  \textbf{Description (GPT-4)} &
+  \textbf{Score} \\
+  \hline
+
+    1-0000 & Parts of individual names, especially last names. & 0.33 \\
+
+    1-0001 & Actions performed by a subject or object. & -0.11 \\
+
+    1-0002 & Instances of 'W' and words beginning with 'w'. & 0.55 \\
+
+  \hline
+  \end{tabular}
+\end{table}
+\end{frame}
+
+\begin{frame}{Results}
+
+  \begin{columns}[c,onlytextwidth]
+
+    \begin{column}{0.55\textwidth}
+      \small
+      The authors compare the interpretability scores
+      of SAE features against those obtained from
+      default basis, random directions, PCA, and ICA.
+
+      \medskip
+
+      The results show that:
+
+      \begin{itemize}
+        \item The sparse dictionary achieves higher
+        interpretability scores, especially in earlier layers.
+
+        \item The advantage decreases in deeper layers,
+        becoming comparable to ICA in layer 4 and
+        minimal in the final layer.
+
+        \item This may be because deeper features
+        are more complex and harder for LLMs
+        to interpret automatically.
+      \end{itemize}
+
+    \end{column}
+
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[width=\linewidth]{interpretability.png}
+    \end{column}
+
+  \end{columns}
+\end{frame}
+
+\section{causal}
+
+\begin{frame}{causal}
+
+  \begin{columns}[c,onlytextwidth]
+
+    \begin{column}{0.24\textwidth}
+    ciaooo
+    \end{column}
+
+    \begin{column}{0.24\textwidth}
+      \centering
+      ciaooo
+    \end{column}
+
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[width=\linewidth,height=0.75\textheight,keepaspectratio]{causal.png}
+    \end{column}
+
+  \end{columns}
+\end{frame}
